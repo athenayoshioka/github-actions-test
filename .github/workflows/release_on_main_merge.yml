@@ -1,0 +1,136 @@
+name: Release on main merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+# -------------------------
+# 1) Tag & Draft Release
+# -------------------------
+  create-release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: version
+        run: |
+          DATE=$(date +'%Y.%m.%d')
+          TAG=v$DATE.${{ github.run_number }}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create Git tag
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Create draft release with notes
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          draft: true
+          generate_release_notes: true
+
+
+# -------------------------
+# 2) Windows build
+# -------------------------
+  build-win:
+    needs: create-release
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install pyinstaller
+
+      - name: Build exe
+        run: pyinstaller --onefile -m TestWindow
+
+      - name: Rename
+        run: |
+          mkdir out
+          move dist\*.exe out\app-windows.exe
+
+      - name: Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: out/app-windows.exe
+
+
+# -------------------------
+# 3) macOS build
+# -------------------------
+  build-mac:
+    needs: create-release
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile -m TestWindow
+
+      - name: Rename
+        run: |
+          mkdir out
+          mv dist/main out/app-macos
+
+      - name: Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: out/app-macos
+
+
+# -------------------------
+# 4) Linux build
+# -------------------------
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile -m TestWindow
+
+      - name: Rename
+        run: |
+          mkdir out
+          mv dist/main out/app-linux
+
+      - name: Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: out/app-linux

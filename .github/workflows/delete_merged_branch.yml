@@ -1,0 +1,31 @@
+name: Delete merged branch to develop
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+
+jobs:
+  delete-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete source branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          echo "Deleting branch: $BRANCH"
+
+          # protect main branches
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "develop" ]]; then
+            echo "Skipping protected branch"
+            exit 0
+          fi
+
+          curl -X DELETE \
+            -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH

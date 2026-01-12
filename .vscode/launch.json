@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: TestWindow",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "TestWindow",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/src"
+        }
+    ]
+}
